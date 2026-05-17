@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SLAP IT! 💥</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #1a0a1e;
+      --surface: #2a1035;
+      --pink: #ff4da6;
+      --pink2: #ff85c2;
+      --purple: #c94eff;
+      --gold: #ffd700;
+      --white: #fff8fe;
+      --font-display: 'Bebas Neue', sans-serif;
+      --font-body: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    html, body {
+      width: 100%; height: 100%;
+      background: var(--bg);
+      color: var(--white);
+      font-family: var(--font-body);
+      overflow: hidden;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    /* ---- Background gradient ---- */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 50% 110%, #5c0066 0%, transparent 70%),
+        radial-gradient(ellipse 60% 40% at 20% 0%, #3d0050 0%, transparent 60%),
+        radial-gradient(ellipse 50% 30% at 80% 0%, #1a0030 0%, transparent 50%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ---- Layout ---- */
+    #app {
+      position: relative; z-index: 1;
+      width: 100%; height: 100dvh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: flex-start;
+    }
+
+    /* ---- HUD ---- */
+    #hud {
+      width: 100%; max-width: 500px;
+      padding: 18px 24px 10px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+
+    #score-wrap { display: flex; flex-direction: column; align-items: flex-start; }
+    #score-label { font-size: 11px; font-weight: 700; letter-spacing: 2px; color: var(--pink2); text-transform: uppercase; }
+    #score {
+      font-family: var(--font-display);
+      font-size: clamp(2.4rem, 8vw, 3.6rem);
+      line-height: 1;
+      color: var(--white);
+      text-shadow: 0 0 20px var(--pink), 0 0 40px var(--purple);
+      font-variant-numeric: tabular-nums lining-nums;
+    }
+
+    #right-hud { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+    #timer-wrap { display: flex; flex-direction: column; align-items: flex-end; }
+    #timer-label { font-size: 11px; font-weight: 700; letter-spacing: 2px; color: var(--pink2); text-transform: uppercase; }
+    #timer {
+      font-family: var(--font-display);
+      font-size: clamp(2rem, 7vw, 3rem);
+      line-height: 1;
+      color: var(--white);
+      font-variant-numeric: tabular-nums lining-nums;
+      text-shadow: 0 0 15px var(--purple);
+    }
+    #timer.urgent { color: #ff3a3a; text-shadow: 0 0 20px #ff0000; animation: pulse 0.4s infinite alternate; }
+
+    #combo-bar {
+      font-size: 12px; font-weight: 800; letter-spacing: 1px;
+      color: var(--gold);
+      text-shadow: 0 0 10px var(--gold);
+      opacity: 0;
+      transition: opacity 0.2s;
+      font-variant-numeric: tabular-nums;
+    }
+    #combo-bar.visible { opacity: 1; }
+
+    /* ---- Game canvas area ---- */
+    #canvas-wrap {
+      position: relative;
+      flex: 1;
+      width: 100%; max-width: 500px;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    canvas {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      margin: auto;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    /* ---- Bottom bar ---- */
+    #bottom-bar {
+      width: 100%; max-width: 500px;
+      padding: 10px 24px 20px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    #cps-display { font-size: 13px; font-weight: 600; color: var(--pink2); }
+    #best-display { font-size: 13px; font-weight: 600; color: var(--gold); }
+
+    /* ---- Overlays ---- */
+    .overlay {
+      position: fixed; inset: 0;
+      z-index: 100;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      background: rgba(10, 0, 18, 0.92);
+      backdrop-filter: blur(8px);
+      gap: 18px;
+      text-align: center;
+      padding: 24px;
+    }
+    .overlay.hidden { display: none; }
+
+    .overlay-title {
+      font-family: var(--font-display);
+      font-size: clamp(3rem, 12vw, 6rem);
+      line-height: 1;
+      color: var(--pink);
+      text-shadow: 0 0 30px var(--pink), 0 0 60px var(--purple);
+      letter-spacing: 2px;
+    }
+    .overlay-sub {
+      font-size: 15px; font-weight: 600; color: var(--pink2);
+      max-width: 300px; line-height: 1.5;
+    }
+    .overlay-score {
+      font-family: var(--font-display);
+      font-size: clamp(2rem, 9vw, 4rem);
+      color: var(--gold);
+      text-shadow: 0 0 20px var(--gold);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .btn {
+      padding: 14px 40px;
+      border-radius: 50px;
+      border: none;
+      background: linear-gradient(135deg, var(--pink), var(--purple));
+      color: #fff;
+      font-family: var(--font-display);
+      font-size: 1.6rem;
+      letter-spacing: 2px;
+      cursor: pointer;
+      box-shadow: 0 0 24px var(--pink), 0 4px 16px rgba(0,0,0,0.5);
+      transition: transform 0.1s, box-shadow 0.1s;
+    }
+    .btn:hover { transform: scale(1.05); box-shadow: 0 0 36px var(--pink), 0 4px 20px rgba(0,0,0,0.5); }
+    .btn:active { transform: scale(0.97); }
+
+    /* ---- Animations ---- */
+    @keyframes pulse { from { opacity: 1; } to { opacity: 0.5; } }
+    @keyframes floatUp {
+      0%   { transform: translateY(0)   scale(1);   opacity: 1; }
+      100% { transform: translateY(-80px) scale(0.7); opacity: 0; }
+    }
+    .float-text {
+      position: absolute;
+      font-family: var(--font-display);
+      font-size: 2rem;
+      color: var(--gold);
+      text-shadow: 0 0 10px var(--gold);
+      pointer-events: none;
+      animation: floatUp 0.8s ease-out forwards;
+      z-index: 50;
+      white-space: nowrap;
+    }
+    .float-text.big { font-size: 2.8rem; color: var(--pink); text-shadow: 0 0 16px var(--pink); }
+  </style>
+</head>
+<body>
+<div id="app">
+  <!-- HUD -->
+  <div id="hud">
+    <div id="score-wrap">
+      <div id="score-label">Очки</div>
+      <div id="score">0</div>
+    </div>
+    <div id="right-hud">
+      <div id="timer-wrap">
+        <div id="timer-label">Время</div>
+        <div id="timer">30</div>
+      </div>
+      <div id="combo-bar">COMBO x<span id="combo-val">1</span></div>
+    </div>
+  </div>
+
+  <!-- Canvas -->
+  <div id="canvas-wrap">
+    <canvas id="game-canvas"></canvas>
+  </div>
+
+  <!-- Bottom bar -->
+  <div id="bottom-bar">
+    <div id="cps-display">Шлепков/с: 0</div>
+    <div id="best-display">Рекорд: 0</div>
+  </div>
+</div>
+
+<!-- Overlays -->
+<div class="overlay" id="overlay-start">
+  <div class="overlay-title">SLAP IT!</div>
+  <div class="overlay-sub">Шлёпай по груди как можно быстрее и набирай очки!</div>
+  <button class="btn" id="btn-start">НАЧАТЬ!</button>
+</div>
+
+<div class="overlay hidden" id="overlay-end">
+  <div class="overlay-title">ВРЕМЯ!</div>
+  <div class="overlay-sub">Твой результат:</div>
+  <div class="overlay-score" id="final-score">0</div>
+  <div class="overlay-sub" id="record-msg" style="color:var(--gold)"></div>
+  <button class="btn" id="btn-restart">ЕЩЁ РАЗ!</button>
+</div>
+
+<script>
+// ─── Constants ───────────────────────────────────────────────────────────────
+const GAME_DURATION = 30;
+const COMBO_TIMEOUT = 600; // ms between clicks to keep combo
+
+// ─── State ───────────────────────────────────────────────────────────────────
+let score = 0, bestScore = 0;
+let timeLeft = GAME_DURATION;
+let gameRunning = false;
+let gameInterval = null;
+let combo = 1, comboTimer = null;
+let clicksInWindow = []; // timestamps for CPS
+let shakeAmount = 0;
+let ripples = [];
+let heartbeats = []; // small heart particles
+let lastClickTime = 0;
+
+// ─── DOM ─────────────────────────────────────────────────────────────────────
+const canvas = document.getElementById('game-canvas');
+const ctx = canvas.getContext('2d');
+const scoreEl = document.getElementById('score');
+const timerEl = document.getElementById('timer');
+const comboEl = document.getElementById('combo-bar');
+const comboValEl = document.getElementById('combo-val');
+const cpsEl = document.getElementById('cps-display');
+const bestEl = document.getElementById('best-display');
+const overlayStart = document.getElementById('overlay-start');
+const overlayEnd = document.getElementById('overlay-end');
+const finalScoreEl = document.getElementById('final-score');
+const recordMsgEl = document.getElementById('record-msg');
+const canvasWrap = document.getElementById('canvas-wrap');
+
+// ─── Sizing ──────────────────────────────────────────────────────────────────
+function resize() {
+  const wrap = canvasWrap.getBoundingClientRect();
+  const size = Math.min(wrap.width, wrap.height, 480);
+  canvas.width = size;
+  canvas.height = size;
+  canvas.style.width = size + 'px';
+  canvas.style.height = size + 'px';
+}
+resize();
+window.addEventListener('resize', () => { resize(); });
+
+// ─── Drawing ─────────────────────────────────────────────────────────────────
+const bust = new Image();
+bust.crossOrigin = 'anonymous';
+
+// Draw the bust illustration directly on canvas using pure canvas drawing
+function drawBody() {
+  const W = canvas.width, H = canvas.height;
+  const cx = W / 2 + (Math.random() - 0.5) * shakeAmount;
+  const cy = H / 2 + (Math.random() - 0.5) * shakeAmount;
+
+  // ── Skin tone gradient (warm peach) ──
+  const skinBase = '#f2bfa0';
+  const skinDark = '#d48a6a';
+  const skinLight = '#ffd5bb';
+
+  // ── Body torso ──
+  // Shoulder/body shape
+  const torsoGrad = ctx.createRadialGradient(cx, cy + H*0.05, H*0.05, cx, cy - H*0.05, H*0.5);
+  torsoGrad.addColorStop(0, skinBase);
+  torsoGrad.addColorStop(0.6, skinDark);
+  torsoGrad.addColorStop(1, '#b8704a');
+
+  ctx.save();
+  ctx.beginPath();
+  // torso outline
+  ctx.moveTo(cx - W * 0.42, H);
+  ctx.quadraticCurveTo(cx - W * 0.40, cy + H * 0.28, cx - W * 0.35, cy + H * 0.20);
+  // left breast outer curve
+  ctx.bezierCurveTo(cx - W * 0.40, cy + H * 0.05, cx - W * 0.38, cy - H * 0.08, cx - W * 0.18, cy - H * 0.02);
+  // neckline center
+  ctx.bezierCurveTo(cx - W * 0.08, cy - H * 0.12, cx + W * 0.08, cy - H * 0.12, cx + W * 0.18, cy - H * 0.02);
+  // right breast outer curve
+  ctx.bezierCurveTo(cx + W * 0.38, cy - H * 0.08, cx + W * 0.40, cy + H * 0.05, cx + W * 0.35, cy + H * 0.20);
+  ctx.quadraticCurveTo(cx + W * 0.40, cy + H * 0.28, cx + W * 0.42, H);
+  ctx.closePath();
+  ctx.fillStyle = torsoGrad;
+  ctx.fill();
+  ctx.restore();
+
+  // ── Left breast ──
+  drawBreast(ctx, cx - W * 0.18, cy + H * 0.07, W * 0.22, H * 0.19, skinLight, skinBase, skinDark);
+  // ── Right breast ──
+  drawBreast(ctx, cx + W * 0.18, cy + H * 0.07, W * 0.22, H * 0.19, skinLight, skinBase, skinDark);
+
+  // ── Cleavage shadow ──
+  const clevGrad = ctx.createLinearGradient(cx - W*0.08, cy, cx + W*0.08, cy + H*0.12);
+  clevGrad.addColorStop(0, 'rgba(140,70,40,0.45)');
+  clevGrad.addColorStop(1, 'rgba(140,70,40,0)');
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - H*0.01);
+  ctx.bezierCurveTo(cx - W*0.04, cy + H*0.05, cx - W*0.03, cy + H*0.12, cx, cy + H*0.14);
+  ctx.bezierCurveTo(cx + W*0.03, cy + H*0.12, cx + W*0.04, cy + H*0.05, cx, cy - H*0.01);
+  ctx.closePath();
+  ctx.fillStyle = clevGrad;
+  ctx.fill();
+  ctx.restore();
+
+  // ── Outfit strap / bra ──
+  // left strap
+  ctx.save();
+  ctx.strokeStyle = '#ff69b4';
+  ctx.lineWidth = W * 0.025;
+  ctx.lineCap = 'round';
+  ctx.shadowColor = '#ff4da6';
+  ctx.shadowBlur = 8;
+  ctx.beginPath();
+  ctx.moveTo(cx - W*0.16, cy - H*0.10);
+  ctx.quadraticCurveTo(cx - W*0.18, cy - H*0.25, cx - W*0.15, cy - H*0.38);
+  ctx.stroke();
+  // right strap
+  ctx.beginPath();
+  ctx.moveTo(cx + W*0.16, cy - H*0.10);
+  ctx.quadraticCurveTo(cx + W*0.18, cy - H*0.25, cx + W*0.15, cy - H*0.38);
+  ctx.stroke();
+  // bra band connecting the cups
+  ctx.beginPath();
+  ctx.moveTo(cx - W*0.30, cy + H*0.12);
+  ctx.quadraticCurveTo(cx, cy + H*0.19, cx + W*0.30, cy + H*0.12);
+  ctx.stroke();
+  ctx.restore();
+
+  // ── Sheen highlight on breasts ──
+  addSheen(ctx, cx - W*0.18, cy + H*0.02, W*0.10);
+  addSheen(ctx, cx + W*0.18, cy + H*0.02, W*0.10);
+
+  // ── Body outline / subtle stroke ──
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(cx - W * 0.42, H);
+  ctx.quadraticCurveTo(cx - W * 0.40, cy + H * 0.28, cx - W * 0.35, cy + H * 0.20);
+  ctx.bezierCurveTo(cx - W * 0.40, cy + H * 0.05, cx - W * 0.38, cy - H * 0.08, cx - W * 0.18, cy - H * 0.02);
+  ctx.bezierCurveTo(cx - W * 0.08, cy - H * 0.12, cx + W * 0.08, cy - H * 0.12, cx + W * 0.18, cy - H * 0.02);
+  ctx.bezierCurveTo(cx + W * 0.38, cy - H * 0.08, cx + W * 0.40, cy + H * 0.05, cx + W * 0.35, cy + H * 0.20);
+  ctx.quadraticCurveTo(cx + W * 0.40, cy + H * 0.28, cx + W * 0.42, H);
+  ctx.strokeStyle = 'rgba(180, 90, 60, 0.3)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.restore();
+
+  shakeAmount *= 0.78; // dampen
+}
+
+function drawBreast(ctx, bx, by, rw, rh, light, mid, dark) {
+  const grad = ctx.createRadialGradient(bx - rw*0.18, by - rh*0.18, rh*0.04, bx, by, rw*0.9);
+  grad.addColorStop(0, light);
+  grad.addColorStop(0.45, mid);
+  grad.addColorStop(1, dark);
+  ctx.save();
+  ctx.beginPath();
+  ctx.ellipse(bx, by, rw, rh, 0, 0, Math.PI * 2);
+  ctx.fillStyle = grad;
+  ctx.fill();
+  ctx.restore();
+}
+
+function addSheen(ctx, sx, sy, sr) {
+  const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, sr);
+  g.addColorStop(0, 'rgba(255,255,255,0.30)');
+  g.addColorStop(0.5, 'rgba(255,255,255,0.08)');
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.save();
+  ctx.beginPath();
+  ctx.ellipse(sx, sy, sr, sr * 0.6, -0.3, 0, Math.PI * 2);
+  ctx.fillStyle = g;
+  ctx.fill();
+  ctx.restore();
+}
+
+// ─── Ripples ─────────────────────────────────────────────────────────────────
+function addRipple(x, y, big) {
+  ripples.push({ x, y, r: big ? 12 : 8, maxR: big ? 80 : 55, alpha: 1, big });
+}
+
+function drawRipples() {
+  for (let i = ripples.length - 1; i >= 0; i--) {
+    const rp = ripples[i];
+    rp.r += (rp.maxR - rp.r) * 0.14;
+    rp.alpha -= 0.045;
+    if (rp.alpha <= 0) { ripples.splice(i, 1); continue; }
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(rp.x, rp.y, rp.r, 0, Math.PI * 2);
+    ctx.strokeStyle = rp.big
+      ? `rgba(255, 80, 160, ${rp.alpha})`
+      : `rgba(255, 200, 220, ${rp.alpha})`;
+    ctx.lineWidth = rp.big ? 3 : 2;
+    ctx.shadowColor = '#ff4da6';
+    ctx.shadowBlur = rp.big ? 16 : 8;
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+// ─── Hearts ──────────────────────────────────────────────────────────────────
+function addHearts(x, y) {
+  for (let i = 0; i < 4; i++) {
+    heartbeats.push({
+      x: x + (Math.random() - 0.5) * 60,
+      y: y + (Math.random() - 0.5) * 40,
+      vy: -(1.5 + Math.random() * 2.5),
+      vx: (Math.random() - 0.5) * 2.5,
+      size: 10 + Math.random() * 18,
+      alpha: 1,
+      rot: (Math.random() - 0.5) * 0.8,
+    });
+  }
+}
+
+function drawHeart(ctx, x, y, size, alpha) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = `hsl(${330 + Math.random()*30}, 100%, 65%)`;
+  ctx.shadowColor = '#ff4da6';
+  ctx.shadowBlur = 12;
+  ctx.beginPath();
+  const s = size / 14;
+  ctx.translate(x, y);
+  ctx.moveTo(0, -s * 3);
+  ctx.bezierCurveTo(s * 6, -s * 9, s * 14, -s * 2, 0, s * 6);
+  ctx.bezierCurveTo(-s * 14, -s * 2, -s * 6, -s * 9, 0, -s * 3);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+function updateHearts() {
+  for (let i = heartbeats.length - 1; i >= 0; i--) {
+    const h = heartbeats[i];
+    h.x += h.vx; h.y += h.vy;
+    h.alpha -= 0.028;
+    h.size -= 0.15;
+    if (h.alpha <= 0 || h.size <= 0) { heartbeats.splice(i, 1); continue; }
+    drawHeart(ctx, h.x, h.y, h.size, h.alpha);
+  }
+}
+
+// ─── Game Loop ───────────────────────────────────────────────────────────────
+function gameLoop() {
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  // Background glow at bottom
+  const bgGrad = ctx.createRadialGradient(W/2, H*1.1, 0, W/2, H*0.8, H*0.8);
+  bgGrad.addColorStop(0, 'rgba(180,0,120,0.18)');
+  bgGrad.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  drawBody();
+  drawRipples();
+  updateHearts();
+  requestAnimationFrame(gameLoop);
+}
+
+// ─── Click / tap handling ────────────────────────────────────────────────────
+function getCanvasPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  if (e.touches) {
+    return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
+  }
+  return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+}
+
+function isOnBody(x, y) {
+  // Simple ellipse hit test centred on canvas
+  const W = canvas.width, H = canvas.height;
+  const cx = W / 2, cy = H / 2;
+  const dx = (x - cx) / (W * 0.44);
+  const dy = (y - (cy + H * 0.1)) / (H * 0.45);
+  return dx * dx + dy * dy <= 1;
+}
+
+function handleClick(e) {
+  e.preventDefault();
+  if (!gameRunning) return;
+  const pos = getCanvasPos(e);
+
+  if (!isOnBody(pos.x, pos.y)) return;
+
+  const now = Date.now();
+  const dt = now - lastClickTime;
+  lastClickTime = now;
+
+  // Combo logic
+  if (dt < COMBO_TIMEOUT) {
+    combo = Math.min(combo + 1, 10);
+  } else {
+    combo = 1;
+  }
+  clearTimeout(comboTimer);
+  comboTimer = setTimeout(() => { combo = 1; comboValEl.textContent = 1; comboEl.classList.remove('visible'); }, COMBO_TIMEOUT);
+
+  const pts = combo;
+  score += pts;
+  shakeAmount = Math.min(shakeAmount + 4 + combo * 1.5, 28);
+
+  // Update combo UI
+  comboValEl.textContent = combo;
+  if (combo > 1) comboEl.classList.add('visible');
+  else comboEl.classList.remove('visible');
+
+  // CPS tracking
+  clicksInWindow.push(now);
+  clicksInWindow = clicksInWindow.filter(t => now - t < 1000);
+
+  // Ripple + hearts
+  addRipple(pos.x, pos.y, combo >= 3);
+  if (combo >= 2) addHearts(pos.x, pos.y);
+
+  // Float text
+  spawnFloat(pos.x, pos.y, combo >= 5 ? `+${pts} 🔥` : `+${pts}`, combo >= 5);
+
+  updateHUD();
+}
+
+canvas.addEventListener('click', handleClick);
+canvas.addEventListener('touchstart', handleClick, { passive: false });
+
+// ─── Float text ──────────────────────────────────────────────────────────────
+function spawnFloat(x, y, text, big) {
+  const el = document.createElement('div');
+  el.className = 'float-text' + (big ? ' big' : '');
+  el.textContent = text;
+  const rect = canvasWrap.getBoundingClientRect();
+  const canRect = canvas.getBoundingClientRect();
+  el.style.left = (canRect.left - rect.left + x - 30) + 'px';
+  el.style.top  = (canRect.top  - rect.top  + y - 30) + 'px';
+  canvasWrap.appendChild(el);
+  setTimeout(() => el.remove(), 850);
+}
+
+// ─── HUD updates ─────────────────────────────────────────────────────────────
+function updateHUD() {
+  scoreEl.textContent = score.toLocaleString('ru-RU');
+  const cps = clicksInWindow.length;
+  cpsEl.textContent = `Шлепков/с: ${cps}`;
+}
+
+// ─── Timer ───────────────────────────────────────────────────────────────────
+function startTimer() {
+  timeLeft = GAME_DURATION;
+  timerEl.textContent = timeLeft;
+  timerEl.classList.remove('urgent');
+  gameInterval = setInterval(() => {
+    timeLeft--;
+    timerEl.textContent = timeLeft;
+    if (timeLeft <= 5) timerEl.classList.add('urgent');
+    if (timeLeft <= 0) endGame();
+  }, 1000);
+}
+
+// ─── Game state ──────────────────────────────────────────────────────────────
+function startGame() {
+  score = 0; combo = 1; shakeAmount = 0;
+  ripples = []; heartbeats = []; clicksInWindow = [];
+  lastClickTime = 0;
+  gameRunning = true;
+  overlayStart.classList.add('hidden');
+  overlayEnd.classList.add('hidden');
+  updateHUD();
+  startTimer();
+}
+
+function endGame() {
+  clearInterval(gameInterval);
+  gameRunning = false;
+  const isRecord = score > bestScore;
+  if (isRecord) { bestScore = score; bestEl.textContent = 'Рекорд: ' + bestScore.toLocaleString('ru-RU'); }
+  finalScoreEl.textContent = score.toLocaleString('ru-RU');
+  recordMsgEl.textContent = isRecord ? '🏆 НОВЫЙ РЕКОРД!' : `Рекорд: ${bestScore.toLocaleString('ru-RU')}`;
+  overlayEnd.classList.remove('hidden');
+}
+
+// ─── Buttons ─────────────────────────────────────────────────────────────────
+document.getElementById('btn-start').addEventListener('click', startGame);
+document.getElementById('btn-restart').addEventListener('click', startGame);
+
+// ─── Start loop ──────────────────────────────────────────────────────────────
+requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>
